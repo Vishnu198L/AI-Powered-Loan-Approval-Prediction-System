@@ -1,0 +1,17 @@
+venv/
+.venv/
+.git/
+.vscode/
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+notebooks/
+
+mlruns/
+mlartifacts/
+mlflow.db
+
+reports/
+*.log
+.env

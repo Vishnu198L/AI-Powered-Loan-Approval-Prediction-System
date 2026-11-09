@@ -1,0 +1,32 @@
+# Data Analysis
+numpy
+pandas
+
+# Data Visualization and EDA
+matplotlib
+seaborn
+plotly
+
+# Machine Learning
+scikit-learn==1.9.0
+imbalanced-learn==0.14.2
+joblib
+
+# MLflow Experiment Tracking
+mlflow
+
+# FastAPI Backend
+fastapi
+uvicorn[standard]
+pydantic
+
+# Streamlit Frontend
+streamlit
+requests
+
+# Jupyter Notebook
+jupyter
+ipykernel
+
+# Environment Variables
+python-dotenv

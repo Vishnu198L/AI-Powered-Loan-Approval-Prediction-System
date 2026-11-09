@@ -1,0 +1,44 @@
+# Python Virtual Environment
+venv/
+.venv/
+env/
+
+# Python Cache Files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook Cache
+.ipynb_checkpoints/
+
+# VS Code and IDE Files
+.vscode/
+.idea/
+
+# MLflow Experiment Tracking
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Environment Variables and Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Temporary Files and Logs
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# Generated Reports
+reports/
+
+# Python Build Files
+build/
+dist/
+*.egg-info/
