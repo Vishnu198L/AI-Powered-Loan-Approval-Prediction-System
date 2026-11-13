@@ -3,10 +3,9 @@ import os
 import requests
 import streamlit as st
 
-
-# =====================================================
+# ======================================================
 # 1. PAGE CONFIGURATION
-# =====================================================
+# ======================================================
 
 st.set_page_config(
     page_title="Loan Decision System",
@@ -15,297 +14,218 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# ======================================================
+# 2. FASTAPI CONFIGURATION
+# ======================================================
+
 API_URL = os.getenv(
     "API_URL",
-    "http://127.0.0.1:8000"
+    "http://localhost:8000"
 ).rstrip("/")
 
+PREDICT_URL = f"{API_URL}/predict"
 
-# =====================================================
-# 2. SESSION STATE
-# =====================================================
+# ======================================================
+# 3. SESSION STATE
+# ======================================================
 
 if "prediction_result" not in st.session_state:
     st.session_state.prediction_result = None
 
-if "application_summary" not in st.session_state:
-    st.session_state.application_summary = None
+if "submitted_data" not in st.session_state:
+    st.session_state.submitted_data = None
 
 
-def clear_application():
-    """Clear the form and its previous prediction."""
-    for key in list(st.session_state.keys()):
-        if key.startswith("field_"):
-            del st.session_state[key]
-
-    st.session_state.prediction_result = None
-    st.session_state.application_summary = None
-
-
-# =====================================================
-# 3. CUSTOM STYLING
-# =====================================================
+# ======================================================
+# 4. CUSTOM CSS
+# ======================================================
 
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
-
+    /* Main application */
     .stApp {
-        background: #F4F7FB;
-        color: #172D45;
+        background: #f3f6fb;
+        color: #17243b;
     }
 
     .block-container {
-        max-width: 1240px;
-        padding-top: 1.5rem;
+        max-width: 1120px;
+        padding-top: 2rem;
         padding-bottom: 3rem;
     }
 
-    header[data-testid="stHeader"] {
-        background: transparent;
+    /* Hide default decoration */
+    #MainMenu {
+        visibility: hidden;
     }
 
-    /* Application header */
+    footer {
+        visibility: hidden;
+    }
 
+    /* Main banner */
     .hero {
         background: linear-gradient(
-            115deg,
-            #10263F 0%,
-            #183B53 55%,
-            #087D80 100%
+            120deg,
+            #0c2340,
+            #124a68,
+            #087e85
         );
-        border-radius: 22px;
-        padding: 34px 40px;
-        margin-bottom: 25px;
-        box-shadow: 0 10px 25px rgba(16, 38, 63, 0.10);
+        padding: 34px 38px;
+        border-radius: 20px;
+        color: white;
+        margin-bottom: 24px;
+        box-shadow: 0 12px 28px rgba(16, 45, 76, 0.12);
     }
 
-    .hero-tag {
-        color: #8BE4D6;
-        font-size: 11px;
-        font-weight: 800;
+    .hero-label {
+        color: #a9edf0;
+        font-size: 12px;
+        font-weight: 700;
         letter-spacing: 2px;
-        margin-bottom: 12px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
     }
 
     .hero-title {
-        font-size: clamp(28px, 4vw, 42px);
+        font-size: 34px;
         font-weight: 800;
-        color: #FFFFFF;
-        margin-bottom: 10px;
         line-height: 1.2;
+        margin: 0 0 12px 0;
+        color: #ffffff;
     }
 
-    .hero-text {
-        color: #D8E9F0;
-        font-size: 14px;
-        line-height: 1.8;
-        max-width: 700px;
+    .hero-subtitle {
+        font-size: 15px;
+        line-height: 1.7;
+        max-width: 760px;
+        color: #dbeaf1;
+        margin: 0;
     }
 
-    /* Text and form section headings */
-
+    /* Section titles */
     .section-heading {
-        color: #142D45;
-        font-size: 21px;
-        font-weight: 800;
-        margin-bottom: 7px;
+        font-size: 18px;
+        font-weight: 750;
+        color: #102b47;
+        margin-top: 12px;
+        margin-bottom: 4px;
     }
 
     .section-description {
-        color: #607389;
         font-size: 13px;
-        line-height: 1.7;
-        margin-bottom: 18px;
+        color: #66788c;
+        margin-bottom: 15px;
     }
 
-    .form-heading {
-        color: #17364B;
-        font-size: 16px;
+    .step-tag {
+        display: inline-block;
+        background: #d7f2f2;
+        color: #087d84;
+        border-radius: 7px;
+        padding: 5px 10px;
+        margin-right: 8px;
         font-weight: 800;
-        padding-top: 8px;
-        padding-bottom: 10px;
-    }
-
-    .step-number {
-        color: #087F7C;
-        font-weight: 800;
-        padding-right: 8px;
-    }
-
-    /* Fix unreadable input labels */
-
-    [data-testid="stWidgetLabel"] p,
-    [data-testid="stWidgetLabel"] label,
-    div[data-testid="stNumberInput"] label p,
-    div[data-testid="stSelectbox"] label p {
-        color: #20394F !important;
-        font-size: 13px !important;
-        font-weight: 700 !important;
-        opacity: 1 !important;
-    }
-
-    /* Number input fields */
-
-    div[data-testid="stNumberInput"]
-    div[data-baseweb="input"] {
-        background: #FFFFFF !important;
-        border: 1px solid #CBD7E3 !important;
-        border-radius: 10px !important;
-    }
-
-    div[data-testid="stNumberInput"] input {
-        background: #FFFFFF !important;
-        color: #172D45 !important;
-        -webkit-text-fill-color: #172D45 !important;
-    }
-
-    div[data-testid="stNumberInput"] button {
-        background: #E9F0F6 !important;
-        color: #172D45 !important;
-    }
-
-    /* Select boxes */
-
-    div[data-testid="stSelectbox"]
-    div[data-baseweb="select"] > div {
-        background: #FFFFFF !important;
-        color: #172D45 !important;
-        border: 1px solid #CBD7E3 !important;
-        border-radius: 10px !important;
-    }
-
-    div[data-testid="stSelectbox"]
-    div[data-baseweb="select"] span {
-        color: #172D45 !important;
-    }
-
-    /* Primary button */
-
-    div.stFormSubmitButton > button[kind="primary"] {
-        background: #087F7C !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        min-height: 49px;
-        font-weight: 800;
-        font-size: 15px;
-    }
-
-    div.stFormSubmitButton > button[kind="primary"]:hover {
-        background: #056C68 !important;
-        color: white !important;
-    }
-
-    /* Clear button */
-
-    div.stButton > button {
-        border-radius: 11px !important;
-        font-weight: 600;
-    }
-
-    /* Highlighted loan ratio */
-
-    .ratio-card {
-        background: #ECF7F5;
-        border: 1px solid #B9DDD7;
-        border-radius: 12px;
-        padding: 17px 20px;
-        margin: 12px 0 10px 0;
-    }
-
-    .ratio-label {
         font-size: 12px;
-        font-weight: 700;
-        color: #426E6E;
     }
 
-    .ratio-value {
-        font-size: 24px;
+    /* Metric / information cards */
+    .info-card {
+        background: #ffffff;
+        border: 1px solid #dfe8f1;
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin: 12px 0;
+    }
+
+    .info-card-label {
+        font-size: 12px;
+        color: #697c8e;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-card-value {
+        font-size: 25px;
         font-weight: 800;
-        color: #087F7C;
-        margin-top: 5px;
+        color: #087f87;
+        margin-top: 7px;
     }
 
     /* Result cards */
-
-    .result-card {
-        background: #FFFFFF;
-        border: 1px solid #DCE6EF;
-        border-radius: 18px;
-        padding: 29px 20px;
-        text-align: center;
+    .result-success {
+        background: #e9f9f2;
+        border: 1px solid #a5e2c3;
+        border-left: 6px solid #16a36d;
+        border-radius: 16px;
+        padding: 28px;
+        margin-top: 12px;
         margin-bottom: 18px;
     }
 
-    .result-eyebrow {
-        color: #64758B;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 1.6px;
+    .result-failure {
+        background: #fff0f0;
+        border: 1px solid #f1b1b5;
+        border-left: 6px solid #d74756;
+        border-radius: 16px;
+        padding: 28px;
+        margin-top: 12px;
+        margin-bottom: 18px;
     }
 
-    .result-yes {
-        color: #09857C;
-        font-size: 65px;
+    .result-title {
+        font-size: 25px;
         font-weight: 800;
-        margin: 12px 0 4px;
+        margin-bottom: 10px;
     }
 
-    .result-no {
-        color: #D05254;
-        font-size: 65px;
-        font-weight: 800;
-        margin: 12px 0 4px;
-    }
-
-    .result-caption {
+    .result-description {
         font-size: 14px;
-        color: #607389;
-        line-height: 1.6;
+        line-height: 1.7;
+        color: #405166;
     }
 
-    .info-card {
-        background: #FFFFFF;
-        border: 1px solid #DFE7EF;
-        border-radius: 14px;
-        padding: 18px 20px;
-        margin-bottom: 12px;
+    /* Buttons */
+    div.stButton > button[kind="primary"],
+    div.stFormSubmitButton > button {
+        background: linear-gradient(
+            90deg,
+            #0b777f,
+            #0d98a2
+        ) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 11px !important;
+        min-height: 48px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
     }
 
-    .info-title {
+    div.stButton > button[kind="primary"]:hover,
+    div.stFormSubmitButton > button:hover {
+        background: #09656d !important;
+        color: white !important;
+    }
+
+    /* Input styling */
+    div[data-baseweb="input"] {
+        border-radius: 9px;
+    }
+
+    div[data-baseweb="select"] > div {
+        border-radius: 9px;
+    }
+
+    /* Footer */
+    .custom-footer {
+        text-align: center;
+        color: #8492a2;
         font-size: 12px;
-        font-weight: 800;
-        color: #61748B;
-        margin-bottom: 8px;
-    }
-
-    .info-value {
-        font-size: 23px;
-        font-weight: 800;
-        color: #17364B;
-    }
-
-    .footnote {
-        color: #607389;
-        font-size: 12px;
-        line-height: 1.8;
-    }
-
-    @media(max-width: 700px) {
-        .hero {
-            padding: 25px;
-        }
-
-        .block-container {
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
+        padding-top: 22px;
+        line-height: 1.9;
     }
 
     </style>
@@ -313,553 +233,480 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
-# =====================================================
-# 4. HEADER
-# =====================================================
+# ======================================================
+# 5. HEADER
+# ======================================================
 
 st.markdown(
     """
     <div class="hero">
-        <div class="hero-tag">
-            AI-POWERED FINANCIAL RISK ANALYSIS
+        <div class="hero-label">
+            AI-POWERED FINANCIAL INTELLIGENCE
         </div>
         <div class="hero-title">
-            Loan Decision System
+            🏦 Loan Decision System
         </div>
-        <div class="hero-text">
-            Assess loan applications with machine learning.
-            Enter applicant details, analyze predicted
-            default risk, and receive a simple YES or NO
-            recommendation.
-        </div>
+        <p class="hero-subtitle">
+            A smart machine learning application that evaluates
+            applicant information, estimates loan default risk,
+            and provides an instant eligibility recommendation.
+        </p>
     </div>
     """,
     unsafe_allow_html=True
 )
 
+# ======================================================
+# 6. BACKEND STATUS
+# ======================================================
 
-# =====================================================
-# 5. MAIN PAGE LAYOUT
-# =====================================================
+try:
+    health_response = requests.get(
+        f"{API_URL}/health",
+        timeout=5
+    )
+    health_response.raise_for_status()
+    backend_connected = True
 
-left_col, right_col = st.columns(
-    [1.55, 1],
-    gap="large"
+except requests.exceptions.RequestException:
+    backend_connected = False
+
+if backend_connected:
+    st.success("✅ Prediction service is connected and ready.")
+else:
+    st.error(
+        "FastAPI backend is unavailable. "
+        "Check the backend container and API connection."
+    )
+
+st.write("")
+
+# ======================================================
+# 7. MAIN APPLICATION FORM
+# ======================================================
+
+st.markdown(
+    '<div class="section-heading">Loan Application</div>',
+    unsafe_allow_html=True
 )
 
+st.markdown(
+    '<div class="section-description">'
+    'Complete the following information to generate your risk assessment.'
+    '</div>',
+    unsafe_allow_html=True
+)
 
-# =====================================================
-# 6. APPLICANT INPUT FORM
-# =====================================================
+with st.form("loan_application_form"):
 
-with left_col:
-
-    st.markdown(
-        '<div class="section-heading">Applicant Details</div>',
-        unsafe_allow_html=True
-    )
+    # --------------------------------------------------
+    # SECTION 1 - PERSONAL DETAILS
+    # --------------------------------------------------
 
     st.markdown(
         """
-        <div class="section-description">
-            Fill in the information below.
-            Fields marked with an asterisk are required.
+        <div class="section-heading">
+            <span class="step-tag">01</span>
+            Personal & Employment Details
         </div>
+        <p class="section-description">
+            Tell us about the applicant's financial background.
+        </p>
         """,
         unsafe_allow_html=True
     )
 
-    with st.form("loan_form"):
+    col1, col2 = st.columns(2, gap="large")
 
-        # ---------------------------------------------
-        # PERSONAL INFORMATION
-        # ---------------------------------------------
-
-        st.markdown(
-            """
-            <div class="form-heading">
-                <span class="step-number">01</span>
-                Personal Information
-            </div>
-            """,
-            unsafe_allow_html=True
+    with col1:
+        person_age = st.number_input(
+            "Applicant Age *",
+            min_value=18,
+            max_value=100,
+            value=30,
+            step=1,
+            help="Applicant's age in years"
         )
 
-        c1, c2 = st.columns(2)
-
-        with c1:
-
-            person_age = st.number_input(
-                "Applicant Age *",
-                min_value=18,
-                max_value=100,
-                value=30,
-                step=1,
-                key="field_age",
-                help="The applicant's age in years."
-            )
-
-            person_income = st.number_input(
-                "Annual Income *",
-                min_value=1.0,
-                value=60000.0,
-                step=1000.0,
-                key="field_income",
-                help=(
-                    "Total yearly income. Use the same "
-                    "currency units as the training dataset."
-                )
-            )
-
-        with c2:
-
-            home_ownership = st.selectbox(
-                "Home Ownership *",
-                ["RENT", "OWN", "MORTGAGE", "OTHER"],
-                key="field_home",
-                help="Choose the applicant's current housing status."
-            )
-
-            emp_length = st.number_input(
-                "Employment Experience (Years) *",
-                min_value=0.0,
-                max_value=50.0,
-                value=5.0,
-                step=1.0,
-                key="field_employment",
-                help="Number of years the applicant has worked."
-            )
-
-        st.divider()
-
-        # ---------------------------------------------
-        # LOAN INFORMATION
-        # ---------------------------------------------
-
-        st.markdown(
-            """
-            <div class="form-heading">
-                <span class="step-number">02</span>
-                Loan Information
-            </div>
-            """,
-            unsafe_allow_html=True
+        person_income = st.number_input(
+            "Annual Income *",
+            min_value=1.0,
+            value=50000.0,
+            step=1000.0,
+            format="%.2f",
+            help="Applicant's annual income"
         )
 
-        c3, c4 = st.columns(2)
-
-        with c3:
-
-            loan_intent = st.selectbox(
-                "Loan Purpose *",
-                [
-                    "PERSONAL",
-                    "EDUCATION",
-                    "MEDICAL",
-                    "VENTURE",
-                    "HOMEIMPROVEMENT",
-                    "DEBTCONSOLIDATION"
-                ],
-                format_func=lambda x: {
-                    "PERSONAL": "Personal Expenses",
-                    "EDUCATION": "Education",
-                    "MEDICAL": "Medical Expenses",
-                    "VENTURE": "Business / Venture",
-                    "HOMEIMPROVEMENT": "Home Improvement",
-                    "DEBTCONSOLIDATION": "Debt Consolidation"
-                }[x],
-                key="field_purpose"
-            )
-
-            loan_amount = st.number_input(
-                "Requested Loan Amount *",
-                min_value=1.0,
-                value=10000.0,
-                step=500.0,
-                key="field_loan_amount"
-            )
-
-        with c4:
-
-            loan_grade = st.selectbox(
-                "Loan Grade *",
-                ["A", "B", "C", "D", "E", "F", "G"],
-                key="field_grade",
-                help=(
-                    "Credit risk grade assigned by the lender. "
-                    "A generally indicates lower risk; "
-                    "G generally indicates higher risk. "
-                    "Exact meanings depend on the lender."
-                )
-            )
-
-            loan_rate = st.number_input(
-                "Annual Interest Rate (%) *",
-                min_value=0.0,
-                max_value=100.0,
-                value=11.5,
-                step=0.1,
-                key="field_interest"
-            )
-
-        # Automatic calculation
-        loan_income_ratio = loan_amount / person_income
-
-        st.markdown(
-            f"""
-            <div class="ratio-card">
-                <div class="ratio-label">
-                    AUTOMATICALLY CALCULATED
-                </div>
-                <div class="ratio-value">
-                    Loan-to-Income: {loan_income_ratio * 100:.2f}%
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
+    with col2:
+        person_home_ownership = st.selectbox(
+            "Home Ownership *",
+            [
+                "RENT",
+                "OWN",
+                "MORTGAGE",
+                "OTHER"
+            ]
         )
 
-        st.caption(
-            "This compares the requested loan amount "
-            "with the applicant's annual income."
-        )
-
-        if loan_income_ratio > 1:
-            st.warning(
-                "The requested loan amount is greater "
-                "than the applicant's annual income. "
-                "Please verify the values and units."
-            )
-
-        st.divider()
-
-        # ---------------------------------------------
-        # CREDIT INFORMATION
-        # ---------------------------------------------
-
-        st.markdown(
-            """
-            <div class="form-heading">
-                <span class="step-number">03</span>
-                Credit Information
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        c5, c6 = st.columns(2)
-
-        with c5:
-
-            previous_default = st.selectbox(
-                "Previous Loan Default *",
-                ["N", "Y"],
-                format_func=lambda x: (
-                    "No" if x == "N" else "Yes"
-                ),
-                key="field_default",
-                help=(
-                    "Has the applicant previously "
-                    "defaulted on a credit obligation?"
-                )
-            )
-
-        with c6:
-
-            credit_history = st.number_input(
-                "Credit History (Years) *",
-                min_value=0.0,
-                max_value=100.0,
-                value=5.0,
-                step=1.0,
-                key="field_credit_history",
-                help=(
-                    "Number of years of recorded "
-                    "credit history."
-                )
-            )
-
-        st.write("")
-
-        submit = st.form_submit_button(
-            "Check Loan Eligibility",
-            type="primary",
-            use_container_width=True
-        )
-
-    st.button(
-        "Clear Form",
-        on_click=clear_application,
-        use_container_width=True
-    )
-
-
-# =====================================================
-# 7. REQUEST PREDICTION FROM FASTAPI
-# =====================================================
-
-if submit:
-
-    # Prevent previous result appearing after a failed request
-    st.session_state.prediction_result = None
-    st.session_state.application_summary = None
-
-    input_data = {
-        "person_age": int(person_age),
-        "person_income": float(person_income),
-        "person_home_ownership": home_ownership,
-        "person_emp_length": float(emp_length),
-        "loan_intent": loan_intent,
-        "loan_grade": loan_grade,
-        "loan_amnt": float(loan_amount),
-        "loan_int_rate": float(loan_rate),
-        "loan_percent_income": float(loan_income_ratio),
-        "cb_person_default_on_file": previous_default,
-        "cb_person_cred_hist_length": float(credit_history)
-    }
-
-    try:
-
-        with st.spinner("Analyzing applicant information..."):
-
-            response = requests.post(
-                f"{API_URL}/predict",
-                json=input_data,
-                timeout=30
-            )
-
-        response.raise_for_status()
-
-        result = response.json()
-
-        approved = result["loan_approved"]
-        probability = float(result["default_probability"])
-
-        if approved not in ("YES", "NO"):
-            raise ValueError("Invalid recommendation from backend.")
-
-        if not 0 <= probability <= 1:
-            raise ValueError("Invalid default probability.")
-
-        st.session_state.prediction_result = {
-            "approved": approved,
-            "probability": probability
-        }
-
-        st.session_state.application_summary = {
-            "loan_amount": loan_amount,
-            "annual_income": person_income,
-            "purpose": loan_intent
-        }
-
-    except requests.exceptions.ConnectionError:
-
-        st.error(
-            "FastAPI is not running or cannot be reached. "
-            "Start your backend on port 8000."
-        )
-
-    except requests.exceptions.Timeout:
-
-        st.error(
-            "Prediction timed out. Please try again."
-        )
-
-    except requests.exceptions.HTTPError as error:
-
-        st.error(
-            f"FastAPI returned an error: {error}"
-        )
-
-    except (ValueError, KeyError, TypeError) as error:
-
-        st.error(
-            f"Invalid prediction response: {error}"
-        )
-
-    except requests.exceptions.RequestException as error:
-
-        st.error(
-            f"Network request failed: {error}"
-        )
-
-
-# =====================================================
-# 8. ASSESSMENT RESULT PANEL
-# =====================================================
-
-with right_col:
-
-    st.markdown(
-        '<div class="section-heading">Assessment Result</div>',
-        unsafe_allow_html=True
-    )
-
-    st.markdown(
-        """
-        <div class="section-description">
-            View the machine learning recommendation
-            and predicted default risk.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    result = st.session_state.prediction_result
-
-    if result is not None:
-
-        approved = result["approved"]
-        probability = result["probability"]
-
-        if approved == "YES":
-
-            result_style = "result-yes"
-            result_message = "Lower Predicted Default Risk"
-
-        else:
-
-            result_style = "result-no"
-            result_message = "Higher Predicted Default Risk"
-
-        st.markdown(
-            f"""
-            <div class="result-card">
-                <div class="result-eyebrow">
-                    LOAN RECOMMENDATION
-                </div>
-                <div class="{result_style}">
-                    {approved}
-                </div>
-                <div class="result-caption">
-                    {result_message}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        # Default probability
-        st.markdown("#### Default Risk")
-
-        risk_percentage = probability * 100
-
-        st.metric(
-            label="Predicted Default Probability",
-            value=f"{risk_percentage:.2f}%"
-        )
-
-        st.progress(probability)
-
-        st.caption(
-            "This percentage represents the model's "
-            "estimated chance of loan default."
-        )
-
-        st.divider()
-
-        # Application summary
-        st.markdown("#### Application Summary")
-
-        summary = st.session_state.application_summary
-
-        st.markdown(
-            f"""
-            <div class="info-card">
-                <div class="info-title">
-                    REQUESTED LOAN AMOUNT
-                </div>
-                <div class="info-value">
-                    {summary["loan_amount"]:,.2f}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        st.write(
-            "**Annual Income:** "
-            f'{summary["annual_income"]:,.2f}'
-        )
-
-        st.write(
-            "**Loan Purpose:** "
-            f'{summary["purpose"].replace("_", " ").title()}'
-        )
-
-        st.divider()
-
-        st.markdown("#### Prediction Model")
-
-        st.write("**Algorithm:** Random Forest")
-        st.write("**Training Balancing Method:** SMOTE")
-
-    else:
-
-        st.markdown(
-            """
-            <div class="result-card">
-                <div class="result-eyebrow">
-                    YOUR LOAN RECOMMENDATION
-                </div>
-                <div style="
-                    font-size: 48px;
-                    color: #A4B1C0;
-                    margin: 20px 0;
-                    font-weight: 800;
-                ">
-                    -- 
-                </div>
-                <div class="result-caption">
-                    Your prediction will appear after
-                    submitting the applicant details.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        st.markdown("#### How It Works")
-
-        st.write("**1. Enter your information**")
-        st.caption(
-            "Provide personal, loan and credit details."
-        )
-
-        st.write("**2. Check Loan Eligibility**")
-        st.caption(
-            "FastAPI processes your application "
-            "using the Random Forest model."
-        )
-
-        st.write("**3. View your result**")
-        st.caption(
-            "Receive a YES/NO recommendation "
-            "and default-risk probability."
+        person_emp_length = st.number_input(
+            "Employment Experience (Years) *",
+            min_value=0.0,
+            max_value=80.0,
+            value=5.0,
+            step=1.0,
+            help="Total employment experience"
         )
 
     st.divider()
 
-    st.info(
-        "This is an educational risk-assessment tool. "
-        "The YES/NO output is based on predicted loan "
-        "default, not an official lending decision."
+    # --------------------------------------------------
+    # SECTION 2 - LOAN INFORMATION
+    # --------------------------------------------------
+
+    st.markdown(
+        """
+        <div class="section-heading">
+            <span class="step-tag">02</span>
+            Loan Information
+        </div>
+        <p class="section-description">
+            Enter the requested loan details.
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
+
+    col3, col4 = st.columns(2, gap="large")
+
+    with col3:
+        loan_intent = st.selectbox(
+            "Purpose of Loan *",
+            [
+                "PERSONAL",
+                "EDUCATION",
+                "MEDICAL",
+                "VENTURE",
+                "HOMEIMPROVEMENT",
+                "DEBTCONSOLIDATION"
+            ]
+        )
+
+        loan_amnt = st.number_input(
+            "Requested Loan Amount *",
+            min_value=1.0,
+            value=10000.0,
+            step=1000.0,
+            format="%.2f"
+        )
+
+    with col4:
+        loan_grade = st.selectbox(
+            "Loan Grade *",
+            [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G"
+            ]
+        )
+
+        loan_int_rate = st.number_input(
+            "Loan Interest Rate (%) *",
+            min_value=0.0,
+            max_value=100.0,
+            value=10.0,
+            step=0.5
+        )
+
+    loan_percent_income = (
+        loan_amnt / person_income
+    )
+
+    st.markdown(
+        f"""
+        <div class="info-card">
+            <div class="info-card-label">
+                Loan-to-Income Ratio
+            </div>
+            <div class="info-card-value">
+                {loan_percent_income * 100:.2f}%
+            </div>
+            <div style="font-size:12px;color:#718096;margin-top:5px;">
+                Requested loan amount compared with annual income.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.divider()
+
+    # --------------------------------------------------
+    # SECTION 3 - CREDIT INFORMATION
+    # --------------------------------------------------
+
+    st.markdown(
+        """
+        <div class="section-heading">
+            <span class="step-tag">03</span>
+            Credit Information
+        </div>
+        <p class="section-description">
+            Provide the applicant's credit background.
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
+
+    col5, col6 = st.columns(2, gap="large")
+
+    with col5:
+        previous_default = st.selectbox(
+            "Previous Loan Default *",
+            ["No", "Yes"]
+        )
+
+    with col6:
+        cb_person_cred_hist_length = st.number_input(
+            "Credit History (Years) *",
+            min_value=0,
+            max_value=100,
+            value=5,
+            step=1
+        )
+
+    cb_person_default_on_file = (
+        "Y" if previous_default == "Yes" else "N"
+    )
+
+    st.write("")
+
+    # --------------------------------------------------
+    # SUBMIT BUTTON
+    # --------------------------------------------------
+
+    submitted = st.form_submit_button(
+        "🔍 Check Loan Eligibility",
+        use_container_width=True,
+        disabled=not backend_connected
     )
 
 
-# =====================================================
-# 9. FOOTER
-# =====================================================
+# ======================================================
+# 8. PREDICTION
+# ======================================================
 
-st.divider()
+if submitted:
+
+    input_data = {
+        "person_age": int(person_age),
+        "person_income": float(person_income),
+        "person_home_ownership": person_home_ownership,
+        "person_emp_length": float(person_emp_length),
+        "loan_intent": loan_intent,
+        "loan_grade": loan_grade,
+        "loan_amnt": float(loan_amnt),
+        "loan_int_rate": float(loan_int_rate),
+        "loan_percent_income": float(loan_percent_income),
+        "cb_person_default_on_file": cb_person_default_on_file,
+        "cb_person_cred_hist_length": int(
+            cb_person_cred_hist_length
+        )
+    }
+
+    try:
+        with st.spinner("Analyzing applicant information..."):
+
+            response = requests.post(
+                PREDICT_URL,
+                json=input_data,
+                timeout=30
+            )
+
+            response.raise_for_status()
+
+            prediction_result = response.json()
+
+        st.session_state.prediction_result = prediction_result
+        st.session_state.submitted_data = input_data
+
+    except requests.exceptions.ConnectionError:
+        st.session_state.prediction_result = None
+        st.error(
+            "Unable to connect to the FastAPI server."
+        )
+
+    except requests.exceptions.Timeout:
+        st.session_state.prediction_result = None
+        st.error(
+            "The prediction request timed out."
+        )
+
+    except requests.exceptions.HTTPError:
+        st.session_state.prediction_result = None
+
+        st.error(
+            f"API Error: HTTP {response.status_code}"
+        )
+
+        st.code(response.text)
+
+    except requests.exceptions.RequestException as error:
+        st.session_state.prediction_result = None
+        st.error(f"API error: {error}")
+
+    except ValueError as error:
+        st.session_state.prediction_result = None
+        st.error(f"Invalid API response: {error}")
+
+
+# ======================================================
+# 9. PREDICTION RESULT DASHBOARD
+# ======================================================
+
+result = st.session_state.prediction_result
+
+if result is not None:
+
+    st.divider()
+
+    st.markdown(
+        '<div class="section-heading">'
+        '📊 Loan Risk Assessment'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    loan_approved = result.get(
+        "loan_approved"
+    )
+
+    default_probability = result.get(
+        "default_probability"
+    )
+
+    if loan_approved == "YES":
+
+        st.markdown(
+            """
+            <div class="result-success">
+                <div class="result-title" style="color:#137f53;">
+                    ✓ Loan Approved: YES
+                </div>
+                <div class="result-description">
+                    The machine learning model predicts the
+                    non-default class for this applicant.
+                    This indicates a lower predicted default risk.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    elif loan_approved == "NO":
+
+        st.markdown(
+            """
+            <div class="result-failure">
+                <div class="result-title" style="color:#c33547;">
+                    ✕ Loan Approved: NO
+                </div>
+                <div class="result-description">
+                    The machine learning model predicts
+                    the default class for this applicant.
+                    This indicates a higher predicted default risk.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    else:
+        st.warning(
+            "Unexpected prediction value returned by the API."
+        )
+        st.json(result)
+
+    # --------------------------------------------------
+    # PROBABILITY DISPLAY
+    # --------------------------------------------------
+
+    if default_probability is not None:
+
+        probability = float(default_probability)
+
+        st.markdown("#### Default Risk Probability")
+
+        metric_col1, metric_col2 = st.columns(2)
+
+        with metric_col1:
+            st.metric(
+                "Estimated Default Probability",
+                f"{probability * 100:.2f}%"
+            )
+
+        with metric_col2:
+            st.metric(
+                "Estimated Non-Default Probability",
+                f"{(1 - probability) * 100:.2f}%"
+            )
+
+        if 0 <= probability <= 1:
+
+            st.progress(probability)
+
+            st.caption(
+                "The risk estimate is based on the "
+                "trained Random Forest classifier."
+            )
+
+    # --------------------------------------------------
+    # APPLICANT DATA SUMMARY
+    # --------------------------------------------------
+
+    with st.expander("📋 View Submitted Application"):
+
+        st.json(
+            st.session_state.submitted_data
+        )
+
+    st.info(
+        "This prediction is an educational risk assessment "
+        "and does not represent an official lending decision."
+    )
+
+# ======================================================
+# 10. CLEAR FORM / RESULTS
+# ======================================================
+
+st.write("")
+
+if st.button(
+    "↻ Clear Prediction Result",
+    use_container_width=True
+):
+
+    st.session_state.prediction_result = None
+    st.session_state.submitted_data = None
+
+    st.rerun()
+
+
+# ======================================================
+# 11. FOOTER
+# ======================================================
 
 st.markdown(
     """
-    <div class="footnote" style="text-align:center;">
-        Loan Decision System
+    <div class="custom-footer">
+        <strong>AI-Powered Loan Approval Prediction System</strong>
         <br>
-        Built with Streamlit, FastAPI and Random Forest
+        Built with Python · Random Forest · FastAPI · Streamlit · Docker
+        <br>
+        Educational machine learning project
     </div>
     """,
     unsafe_allow_html=True
